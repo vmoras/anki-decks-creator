@@ -7,8 +7,11 @@ from .domain import CardType
 
 
 class AnkiCard(Protocol):
+    create_img: bool = False
+    img_path: Path | None = None
+    img_name: str | None = None
     audio_path: Path | None = None
-    REQUIRED_FIELDS: ClassVar[set[str]]
+    REQUIRED_FIELDS: ClassVar[set[str]]  # Required columns in the CSV file
 
     @classmethod
     def create_from_csv(cls, row: dict) -> 'AnkiCard': ...
@@ -25,6 +28,9 @@ class NumberCard:
     number: int
     word: str
     ipa: str
+    create_img: bool = False
+    img_path: Path | None = None
+    img_name: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'number', 'word', 'ipa'}
 
@@ -55,34 +61,58 @@ class NumberCard:
 @dataclass(slots=True)
 class VocabularyCard:
     spanish_words: str
-    french_sentence: str
+    french_word: str
     ipa: str
     notes: str
+    create_img: bool
+    img_name: str | None
+    img_path: Path | None
+    audio_script: str
     audio_path: Path | None = None
-    REQUIRED_FIELDS: ClassVar[set[str]] = {'text_es', 'text_fr', 'ipa', 'notes'}
+    REQUIRED_FIELDS: ClassVar[set[str]] = {
+        'img_name', 'word_spanish', 'word_french', 'audio_script', 'audio_ipa', 'notes',
+        'create_img'
+    }
 
     @classmethod
     def create_from_csv(cls, row: dict) -> 'VocabularyCard':
+        """
+        Note: for the image path, the image name is set now and its directory is later
+        set.
+        """
+        if row['img_name'] == '':
+            img_name, img_path = None, None
+        else:
+            img_name, img_path = row['img_name'], Path(f"{row['img_name']}.png")
+
+        create_img = True if row['create_img'].lower() == 'true' else False
         return cls(
-            spanish_words=row['text_es'],
-            french_sentence=row['text_fr'],
-            ipa=row['ipa'],
+            spanish_words=row['word_spanish'],
+            french_word=row['word_french'],
+            ipa=row['audio_ipa'],
             notes=row['notes'],
+            audio_script=row['audio_script'],
+            img_name=img_name,
+            img_path=img_path,
+            create_img=create_img
         )
 
     def get_text_for_audio(self) -> str:
-        return self.french_sentence
+        return self.audio_script
 
     def get_audio_filename(self) -> str:
-        safe_name = self.french_sentence[:30].replace(" ", "_").replace("'", "")
+        safe_name =re.sub(r'[^\w\-.]', '_', self.french_word)
         return f"vocab_{safe_name}.mp3"
 
     def to_anki_fields(self) -> list[str]:
         audio_field = f"[sound:{self.get_audio_filename()}]" if self.audio_path else ""
+        img_field = f'<img src="{self.img_path.name}">' if self.img_path is not None else ""
         return [
             self.spanish_words,
-            self.french_sentence,
+            self.french_word,
             audio_field,
+            self.ipa,
+            img_field,
             self.notes
         ]
 
@@ -92,6 +122,9 @@ class ClozeCard:
     sentence: str
     translation: str
     notes: str
+    create_img: bool = False
+    img_path: Path | None = None
+    img_name: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'text_cloze', 'translation', 'notes'}
 
@@ -104,15 +137,14 @@ class ClozeCard:
         )
 
     def get_clean_text(self) -> str:
-        text_clean = re.sub(r'\{\{c\d+::(.*?)\}\}', r'\1', self.sentence)
+        text_clean = re.sub(r'\{\{c\d+::(.*?)}}', r'\1', self.sentence)
         return text_clean
 
     def get_text_for_audio(self) -> str:
         return self.get_clean_text()
 
     def get_audio_filename(self) -> str:
-        text = self.get_clean_text()
-        clean = text[:30].replace(" ", "_").replace("'", "")
+        clean = re.sub(r'[^\w\-.]', '_', self.sentence)
         return f"cloze_{clean}.mp3"
 
     def to_anki_fields(self) -> list[str]:
@@ -125,10 +157,51 @@ class ClozeCard:
         ]
 
 
+@dataclass(slots=True)
+class VerbCard:
+    verb_spanish: str
+    conjugation: str
+    notes: str
+    audio_script: str
+    create_img: bool = False
+    img_path: Path | None = None
+    img_name: str | None = None
+    audio_path: Path | None = None
+    REQUIRED_FIELDS: ClassVar[set[str]] = {
+        'verb_spanish', 'conjugation', 'notes', 'audio_script'
+    }
+
+    @classmethod
+    def create_from_csv(cls, row: dict) -> 'VerbCard':
+        return cls(
+            verb_spanish=row['verb_spanish'],
+            conjugation=row['conjugation'],
+            notes=row['notes'],
+            audio_script=row['audio_script']
+        )
+
+    def get_text_for_audio(self) -> str:
+        return self.audio_script
+
+    def get_audio_filename(self) -> str:
+        clean = re.sub(r'[^\w\-.]', '_', self.verb_spanish)
+        return f"verb_{clean}.mp3"
+
+    def to_anki_fields(self) -> list[str]:
+        audio_field = f"[sound:{self.get_audio_filename()}]" if self.audio_path else ""
+        return [
+            self.verb_spanish,
+            self.conjugation,
+            self.notes,
+            audio_field
+        ]
+
+
 def get_anki_card(card_type: CardType) -> AnkiCard:
     factories: dict[CardType, AnkiCard] = {
         CardType.NUMBER: NumberCard,
         CardType.CLOZE: ClozeCard,
-        CardType.VOCABULARY: VocabularyCard
+        CardType.VOCABULARY: VocabularyCard,
+        CardType.VERB: VerbCard
     }
     return factories[card_type]

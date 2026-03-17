@@ -21,7 +21,6 @@ class DeckBuilderService:
         )
 
         anki_model = card_config.anki_model
-        print(len(cards))
         for card in cards:
             note = genanki.Note(
                 model=anki_model,
@@ -32,9 +31,12 @@ class DeckBuilderService:
         audio_files: list[Path] = [
             card.audio_path for card in cards if card.audio_path is not None
         ]
+        image_files: list[Path] = [
+            card.img_path for card in cards if card.img_path is not None
+        ]
         package = genanki.Package(
             deck_or_decks=deck,
-            media_files=audio_files
+            media_files=audio_files + image_files
         )
         package.write_to_file(
             file=output_path

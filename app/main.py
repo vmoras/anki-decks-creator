@@ -7,6 +7,7 @@ from models.domain import CardType
 from core.config import get_settings
 from models.registry import CARD_REGISTRY
 from services.loader_service import LoaderService
+from services.image_search_service import ImageService
 from services.builder_service import DeckBuilderService
 from services.audio_generator_service import AudioService
 
@@ -23,7 +24,9 @@ def main(
             ..., help='Path to the file to use to create the cards'
         ),
         deck_name: str = typer.Argument(
-            ..., help='Name of the anki deck where the apkg will be assigned.'
+            ...,
+            help='Name of the anki deck where the apkg will be assigned. In order'
+                 'to make a subfolder use "::". For example English::Verbs:Irregular'
         ),
         saving_dir: Path = typer.Option(
             Path(__file__).resolve().parent.parent / 'data' / 'output',
@@ -33,6 +36,20 @@ def main(
             None,
             help='Name for the output apkg file. If not provided, the card_type will be '
                  'used'
+        ),
+        search_images: bool = typer.Option(
+            True,
+            help="Enable image search for cards that require one. "
+                 "If disabled, image fields are left empty even when a card defines them. "
+                 "Has no effect on cards without image fields."
+        ),
+        save_images: bool = typer.Option(
+            True, help='Whether the downloaded images should be kept or not.'
+        ),
+        saved_images_dir: Path = typer.Option(
+            Path(__file__).resolve().parent.parent / 'data' / 'images',
+            help='Path where the images for the cards are saved after being downloaded. '
+                 'Can be deleted if save-images is false'
         ),
         create_audios: bool = typer.Option(
             True, help='Whether the app should create audios or not'
@@ -48,6 +65,8 @@ def main(
         
 ):
     # --------------------------------- Validations ---------------------------------
+
+    #
     if not input_file.exists():
         typer.echo(f'ERROR: input file {input_file} does not exists', err=True)
         raise typer.Exit(code=1)
@@ -59,6 +78,7 @@ def main(
         )
         raise typer.Exit(code=1)
 
+    #
     settings = get_settings()
     can_create_audio = settings.can_generate_audio
     if create_audios and not can_create_audio:
@@ -69,11 +89,27 @@ def main(
         raise typer.Exit(code=1)
     if not create_audios and save_audios:
         typer.echo(
-            'WARNING: save_audios will be ignored since create_audios is set to False.',
+            'WARNING: save-audios will be ignored since create-audios is set to False.',
             err=True
         )
         save_audios = False
 
+    #
+    can_search_images = settings.can_get_images
+    if search_images and not can_search_images:
+        typer.echo(
+            f'ERROR: selected create images but app can not seach images, probably an '
+            f'API key is missing', err=True
+        )
+        raise typer.Exit(code=1)
+    if not search_images and save_images:
+        typer.echo(
+            'WARNING: save-images will be ignored since search-images is set to False.',
+            err=True
+        )
+        save_images = False
+
+    #
     if not saving_dir.exists():
         typer.echo(
             f'INFO: saving dir {saving_dir} does not exists. It will be created.'
@@ -108,13 +144,15 @@ def main(
     _run(
         card_type=card_type, input_path=input_file, deck_name=deck_name,
         output_path=output_path, create_audios=create_audios, save_audios=save_audios,
-        save_audios_dir=saved_audios_dir
+        save_audios_dir=saved_audios_dir, search_images=search_images,
+        save_images=save_images, save_images_dir=saved_images_dir
     )
 
 
 def _run(
         card_type: CardType, input_path: Path, deck_name: str, output_path: Path,
-        create_audios: bool, save_audios: bool, save_audios_dir: Path
+        create_audios: bool, save_audios: bool, save_audios_dir: Path, save_images: bool,
+        search_images: bool, save_images_dir: Path
 ):
     settings = get_settings()
     card_config = CARD_REGISTRY[card_type]
@@ -130,14 +168,24 @@ def _run(
     if create_audios:
         print("\n🎵 Generating audios...")
         audio_service = AudioService(
-            api_key=settings.ELEVENLABS_API_KEY,
-            voice_id=settings.VOICE_ID,
-            model_id=settings.MODEL_ID,
-            output_format=settings.OUTPUT_FORMAT,
-            language_code=settings.LANGUAGE_CODE,
+            api_key=settings.elevenlabs_api_key,
+            voice_id=settings.voice_id,
+            model_id=settings.model_id,
+            output_format=settings.output_format,
+            language_code=settings.language_code,
             saving_dir=save_audios_dir
         )
         generated_audios = audio_service.generate_audios(cards=cards)
+
+    # ------------------------------- IMAGE RESOLUTION -------------------------------
+    downloaded_images: list[Path] = []
+    if search_images:
+        print("\n🖼️ Searching images...")
+        image_service = ImageService(
+            api_key=settings.pexels_api_key,
+            saving_dir=save_images_dir
+        )
+        downloaded_images = image_service.get_images(cards=cards)
 
     # ------------------------------- DECK GENERATION -------------------------------
     print("\n📦 Creating Anki package...")
@@ -150,6 +198,9 @@ def _run(
     if create_audios and not save_audios and generated_audios:
         for audio_path in generated_audios:
             shutil.rmtree(audio_path)
+    if search_images and not save_images and downloaded_images:
+        for img_path in downloaded_images:
+            shutil.rmtree(img_path)
 
     print("\n🎉 DONE!")
 

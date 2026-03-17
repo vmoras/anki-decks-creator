@@ -11,23 +11,26 @@ PROJECT_DIR: Path = Path(__file__).resolve().parent.parent.parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=PROJECT_DIR / '.env',
-        env_file_encoding='utf-8'
+        env_file_encoding='utf-8',
+        extra='ignore'
     )
 
-    ELEVENLABS_API_KEY : str | None = Field(None)
-    VOICE_ID: str | None = Field(None)
-    MODEL_ID: str | None = Field(None)
-    OUTPUT_FORMAT: str | None = Field(None)
-    LANGUAGE_CODE: str | None = Field(None)
+    elevenlabs_api_key : str | None = Field(None)
+    voice_id: str | None = Field(None)
+    model_id: str | None = Field(None)
+    output_format: str | None = Field(None)
+    language_code: str | None = Field(None)
+    
+    pexels_api_key: str | None = Field(None)
 
     @model_validator(mode='after')
     def validate_audio_config(self) -> 'Settings':
         audio_fields: dict[str, str | None] = {
-            'ELEVENLABS_API_KEY': self.ELEVENLABS_API_KEY,
-            'VOICE_ID': self.VOICE_ID,
-            'MODEL_ID': self.MODEL_ID,
-            'OUTPUT_FORMAT': self.OUTPUT_FORMAT,
-            'LANGUAGE_CODE': self.LANGUAGE_CODE,
+            'elevenlabs_api_key': self.elevenlabs_api_key,
+            'voice_id': self.voice_id,
+            'model_id': self.model_id,
+            'output_format': self.output_format,
+            'language_code': self.language_code,
         }
         missing = [k for k, v in audio_fields.items() if v is None]
         present = [k for k, v in audio_fields.items() if v is not None]
@@ -38,7 +41,11 @@ class Settings(BaseSettings):
 
     @property
     def can_generate_audio(self) -> bool:
-        return self.ELEVENLABS_API_KEY is not None
+        return self.elevenlabs_api_key is not None
+
+    @property
+    def can_get_images(self) -> bool:
+        return self.pexels_api_key is not None
 
 
 @lru_cache
