@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 
 import typer
@@ -26,7 +25,7 @@ def main(
         deck_name: str = typer.Argument(
             ...,
             help='Name of the anki deck where the apkg will be assigned. In order'
-                 'to make a subfolder use "::". For example English::Verbs:Irregular'
+                 'to make a subfolder use "::". For example English::Verbs::Irregular'
         ),
         saving_dir: Path = typer.Option(
             Path(__file__).resolve().parent.parent / 'data' / 'output',
@@ -95,13 +94,7 @@ def main(
         save_audios = False
 
     #
-    can_search_images = settings.can_get_images
-    if search_images and not can_search_images:
-        typer.echo(
-            f'ERROR: selected create images but app can not seach images, probably an '
-            f'API key is missing', err=True
-        )
-        raise typer.Exit(code=1)
+
     if not search_images and save_images:
         typer.echo(
             'WARNING: save-images will be ignored since search-images is set to False.',
@@ -138,6 +131,8 @@ def main(
     typer.echo(f"  Output path   : {output_path}")
     typer.echo(f"  Create audios : {create_audios}")
     typer.echo(f"  Save audios   : {save_audios}")
+    typer.echo(f"  Get images    : {search_images}")
+    typer.echo(f"  Save images   : {save_images}")
     typer.echo("─" * 50 + "\n")
 
     # ------------------------------------ Run ------------------------------------
@@ -162,6 +157,18 @@ def _run(
     cards = LoaderService.load_data(
         input_file=input_path, card_config=card_config
     )
+
+    #
+    cards_contain_images = any(
+        card.img_name is not None for card in cards
+    )
+    can_search_images = settings.can_get_images
+    if search_images and cards_contain_images and not can_search_images:
+        typer.echo(
+            f'ERROR: selected create images but app can not search images, probably an '
+            f'API key is missing', err=True
+        )
+        raise typer.Exit(code=1)
 
     # ------------------------------- AUDIO GENERATION -------------------------------
     generated_audios: list[Path] = []
@@ -197,10 +204,10 @@ def _run(
     # ---------------------------------- CLEANING -----------------------------------
     if create_audios and not save_audios and generated_audios:
         for audio_path in generated_audios:
-            shutil.rmtree(audio_path)
+            audio_path.unlink()
     if search_images and not save_images and downloaded_images:
         for img_path in downloaded_images:
-            shutil.rmtree(img_path)
+            img_path.unlink()
 
     print("\n🎉 DONE!")
 
