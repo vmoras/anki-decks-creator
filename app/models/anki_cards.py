@@ -80,12 +80,13 @@ class VocabularyCard:
         Note: for the image path, the image name is set now and its directory is later
         set.
         """
-        if row['img_name'] == '':
+        if row['create_img'].lower() != 'true':
             img_name, img_path = None, None
+            create_img = False
         else:
             img_name, img_path = row['img_name'], Path(f"{row['img_name']}.png")
+            create_img = True
 
-        create_img = True if row['create_img'].lower() == 'true' else False
         return cls(
             spanish_words=row['word_spanish'],
             french_word=row['word_french'],
@@ -101,7 +102,7 @@ class VocabularyCard:
         return self.audio_script
 
     def get_audio_filename(self) -> str:
-        safe_name =re.sub(r'[^\w\-.]', '_', self.french_word)
+        safe_name = re.sub(r'[^\w\-.]', '_', self.french_word)
         return f"vocab_{safe_name}.mp3"
 
     def to_anki_fields(self) -> list[str]:

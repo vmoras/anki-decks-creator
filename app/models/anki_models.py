@@ -5,7 +5,7 @@ import genanki
 from .domain import CardType
 
 
-MODEL_IDS: dict[CardType, float] = {
+MODEL_IDS: dict[CardType, int] = {
     CardType.NUMBER: 1607392321,
     CardType.VOCABULARY: 1607392322,
     CardType.CLOZE: 1607392323,
