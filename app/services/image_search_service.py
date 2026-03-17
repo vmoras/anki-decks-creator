@@ -1,7 +1,6 @@
 import logging
 import requests
 from PIL import Image
-import urllib.request
 from io import BytesIO
 from pathlib import Path
 
@@ -78,10 +77,6 @@ class ImageService:
             return None
 
     def _download_image(self, img_url: str, output_path: Path) -> None:
-        print(img_url)
-        req = urllib.request.Request(img_url, headers={"User-Agent": "Mozilla/5.0"})
-        data = urllib.request.urlopen(req).read()
-        img = Image.open(BytesIO(data))
+        res = requests.get(img_url, headers={"User-Agent": "Mozilla/5.0"})
+        img = Image.open(BytesIO(res.content))
         img.save(output_path, "PNG")
-
-        return
