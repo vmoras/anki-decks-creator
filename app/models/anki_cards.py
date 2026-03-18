@@ -10,6 +10,7 @@ class AnkiCard(Protocol):
     create_img: bool = False
     img_path: Path | None = None
     img_prompt: str | None = None
+    create_audio: bool = False
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]]  # Required columns in the CSV file
 
@@ -31,6 +32,7 @@ class NumberCard:
     create_img: bool = False
     img_path: Path | None = None
     img_prompt: str | None = None
+    create_audio: bool = True
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'number', 'word', 'ipa'}
 
@@ -68,6 +70,7 @@ class VocabularyCard:
     img_path: Path | None
     img_prompt: str | None
     audio_script: str
+    create_audio: bool = True
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {
         'word_spanish', 'word_french', 'audio_script', 'audio_ipa', 'notes', 'img_prompt',
@@ -126,6 +129,7 @@ class ClozeCard:
     create_img: bool = False
     img_path: Path | None = None
     img_prompt: str | None = None
+    create_audio: bool = True
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'text_cloze', 'translation', 'notes'}
 
@@ -167,6 +171,7 @@ class VerbCard:
     create_img: bool = False
     img_path: Path | None = None
     img_prompt: str | None = None
+    create_audio: bool = True
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {
         'verb_spanish', 'conjugation', 'notes', 'audio_script'
@@ -198,11 +203,49 @@ class VerbCard:
         ]
 
 
+@dataclass(slots=True)
+class GrammarCard:
+    topic: str
+    description: str
+    instruction: str
+    create_img: bool = False
+    img_path: Path | None = None
+    img_prompt: str | None = None
+    create_audio: bool = False
+    audio_path: Path | None = None
+    REQUIRED_FIELDS: ClassVar[set[str]] = {
+        'topic', 'instruction'
+    }
+
+    @classmethod
+    def create_from_csv(cls, row: dict) -> 'GrammarCard':
+        return cls(
+            topic=row['topic'],
+            description=row['description'],
+            instruction=row['instruction']
+        )
+
+    def get_text_for_audio(self) -> str:
+        raise NotImplementedError("GrammarCard does not support audio")
+
+    def get_audio_filename(self) -> str:
+        raise NotImplementedError("GrammarCard does not support audio")
+
+    def to_anki_fields(self) -> list[str]:
+        return [
+            self.topic,
+            self.description,
+            self.instruction
+        ]
+
+
+
 def get_anki_card(card_type: CardType) -> AnkiCard:
     factories: dict[CardType, AnkiCard] = {
         CardType.NUMBER: NumberCard,
         CardType.CLOZE: ClozeCard,
         CardType.VOCABULARY: VocabularyCard,
-        CardType.VERB: VerbCard
+        CardType.VERB: VerbCard,
+        CardType.GRAMMAR: GrammarCard
     }
     return factories[card_type]

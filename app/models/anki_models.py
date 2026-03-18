@@ -9,7 +9,8 @@ MODEL_IDS: dict[CardType, int] = {
     CardType.NUMBER: 1607392321,
     CardType.VOCABULARY: 1607392322,
     CardType.CLOZE: 1607392323,
-    CardType.VERB: 1607392324
+    CardType.VERB: 1607392324,
+    CardType.GRAMMAR: 1607392325
 }
 
 
@@ -189,11 +190,48 @@ def _create_verb_model() -> genanki.Model:
     )
 
 
+def _create_grammar_model() -> genanki.Model:
+    return genanki.Model(
+        MODEL_IDS[CardType.GRAMMAR],
+        'Grammar',
+        fields=[
+            {'name': 'Topic'},
+            {'name': 'Description'},
+            {'name': 'Instruction'}
+        ],
+        templates=[
+            {
+                'name': 'Grammar Practice',
+                'qfmt': '''
+                    <div style="font-size: 30px; text-align: center; color: #888;">
+                        {{Topic}}
+                    </div>
+                    <div style="font-size: 22px; text-align: center; color: #aaa; margin-top: 10px;">
+                        {{Description}}
+                    </div>
+                    <hr>
+                    <div style="font-size: 35px; text-align: center; margin-top: 20px;">
+                        {{Instruction}}
+                    </div>
+                ''',
+                'afmt': '''
+                    {{FrontSide}}
+                    <hr>
+                    <div style="font-size: 25px; text-align: center; margin-top: 20px; color: #666;">
+                        Evalúa tu respuesta con el LLM
+                    </div>
+                '''
+            }
+        ],
+    )
+
+
 def get_anki_model(card_type: CardType) -> genanki.Model:
     factories: dict[CardType, Callable[[], genanki.Model]] = {
         CardType.NUMBER: _create_number_model,
         CardType.VOCABULARY: _create_vocabulary_model,
         CardType.CLOZE: _create_cloze_model,
-        CardType.VERB: _create_verb_model
+        CardType.VERB: _create_verb_model,
+        CardType.GRAMMAR: _create_grammar_model
     }
     return factories[card_type]()

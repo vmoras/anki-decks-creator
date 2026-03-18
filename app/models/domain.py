@@ -6,3 +6,4 @@ class CardType(Enum):
     VOCABULARY = 'Vocabulary'
     CLOZE = 'Cloze'
     VERB = 'Verb'
+    GRAMMAR = 'Grammar'

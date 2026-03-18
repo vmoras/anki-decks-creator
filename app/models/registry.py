@@ -29,5 +29,9 @@ CARD_REGISTRY: dict[CardType, CardTypeConfig] = {
     CardType.VERB: CardTypeConfig(
         anki_card=get_anki_card(CardType.VERB),
         anki_model=get_anki_model(CardType.VERB)
+    ),
+    CardType.GRAMMAR: CardTypeConfig(
+        anki_card=get_anki_card(CardType.GRAMMAR),
+        anki_model=get_anki_model(CardType.GRAMMAR)
     )
 }

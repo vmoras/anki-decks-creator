@@ -78,14 +78,6 @@ def main(
         raise typer.Exit(code=1)
 
     #
-    settings = get_settings()
-    can_create_audio = settings.can_generate_audio
-    if create_audios and not can_create_audio:
-        typer.echo(
-            f'ERROR: selected create audios but app can not create audios, probably an '
-            f'API key is missing', err=True
-        )
-        raise typer.Exit(code=1)
     if not create_audios and save_audios:
         typer.echo(
             'WARNING: save-audios will be ignored since create-audios is set to False.',
@@ -94,7 +86,6 @@ def main(
         save_audios = False
 
     #
-
     if not create_images and save_images:
         typer.echo(
             'WARNING: save-images will be ignored since create-images is set to False.',
@@ -168,9 +159,19 @@ def _run(
         )
         raise typer.Exit(code=1)
 
+    #
+    cards_contain_audios = any(card.create_audio for card in cards)
+    can_create_audio = settings.can_generate_audio
+    if create_audios and cards_contain_audios and not can_create_audio:
+        typer.echo(
+            f'ERROR: selected create audios but app can not create audios, probably an '
+            f'API key is missing', err=True
+        )
+        raise typer.Exit(code=1)
+
     # ------------------------------- AUDIO GENERATION -------------------------------
     generated_audios: list[Path] = []
-    if create_audios:
+    if create_audios and cards_contain_audios:
         print("\n🎵 Generating audios...")
         audio_service = AudioService(
             api_key=settings.elevenlabs_api_key,
@@ -184,7 +185,7 @@ def _run(
 
     # ------------------------------- IMAGE RESOLUTION -------------------------------
     downloaded_images: list[Path] = []
-    if create_images:
+    if create_images and cards_contain_images:
         print("\n🖼️ Generating images...")
         image_service = ImageService(
             token=settings.hf_token,
