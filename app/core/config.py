@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     output_format: str | None = Field(None)
     language_code: str | None = Field(None)
     
-    pexels_api_key: str | None = Field(None)
+    hf_token: str | None = Field(None)
 
     @model_validator(mode='after')
     def validate_audio_config(self) -> 'Settings':
@@ -44,8 +44,8 @@ class Settings(BaseSettings):
         return self.elevenlabs_api_key is not None
 
     @property
-    def can_get_images(self) -> bool:
-        return self.pexels_api_key is not None
+    def can_generate_images(self) -> bool:
+        return self.hf_token is not None
 
 
 @lru_cache

@@ -6,8 +6,8 @@ from models.domain import CardType
 from core.config import get_settings
 from models.registry import CARD_REGISTRY
 from services.loader_service import LoaderService
-from services.image_search_service import ImageService
 from services.builder_service import DeckBuilderService
+from services.image_generator_service import ImageService
 from services.audio_generator_service import AudioService
 
 
@@ -36,9 +36,9 @@ def main(
             help='Name for the output apkg file. If not provided, the card_type will be '
                  'used'
         ),
-        search_images: bool = typer.Option(
+        create_images: bool = typer.Option(
             True,
-            help="Enable image search for cards that require one. "
+            help="Enable image creation for cards that require one. "
                  "If disabled, image fields are left empty even when a card defines them. "
                  "Has no effect on cards without image fields."
         ),
@@ -95,9 +95,9 @@ def main(
 
     #
 
-    if not search_images and save_images:
+    if not create_images and save_images:
         typer.echo(
-            'WARNING: save-images will be ignored since search-images is set to False.',
+            'WARNING: save-images will be ignored since create-images is set to False.',
             err=True
         )
         save_images = False
@@ -131,7 +131,7 @@ def main(
     typer.echo(f"  Output path   : {output_path}")
     typer.echo(f"  Create audios : {create_audios}")
     typer.echo(f"  Save audios   : {save_audios}")
-    typer.echo(f"  Get images    : {search_images}")
+    typer.echo(f"  Create images : {create_images}")
     typer.echo(f"  Save images   : {save_images}")
     typer.echo("─" * 50 + "\n")
 
@@ -139,7 +139,7 @@ def main(
     _run(
         card_type=card_type, input_path=input_file, deck_name=deck_name,
         output_path=output_path, create_audios=create_audios, save_audios=save_audios,
-        save_audios_dir=saved_audios_dir, search_images=search_images,
+        save_audios_dir=saved_audios_dir, create_images=create_images,
         save_images=save_images, save_images_dir=saved_images_dir
     )
 
@@ -147,7 +147,7 @@ def main(
 def _run(
         card_type: CardType, input_path: Path, deck_name: str, output_path: Path,
         create_audios: bool, save_audios: bool, save_audios_dir: Path, save_images: bool,
-        search_images: bool, save_images_dir: Path
+        create_images: bool, save_images_dir: Path
 ):
     settings = get_settings()
     card_config = CARD_REGISTRY[card_type]
@@ -159,14 +159,12 @@ def _run(
     )
 
     #
-    cards_contain_images = any(
-        card.img_name is not None for card in cards
-    )
-    can_search_images = settings.can_get_images
-    if search_images and cards_contain_images and not can_search_images:
+    cards_contain_images = any(card.create_img for card in cards)
+    can_generate_images = settings.can_generate_images
+    if create_images and cards_contain_images and not can_generate_images:
         typer.echo(
-            f'ERROR: selected create images but app can not search images, probably an '
-            f'API key is missing', err=True
+            f'ERROR: selected create images but app can not generate images, probably a '
+            f'Token is missing', err=True
         )
         raise typer.Exit(code=1)
 
@@ -186,10 +184,10 @@ def _run(
 
     # ------------------------------- IMAGE RESOLUTION -------------------------------
     downloaded_images: list[Path] = []
-    if search_images:
-        print("\n🖼️ Searching images...")
+    if create_images:
+        print("\n🖼️ Generating images...")
         image_service = ImageService(
-            api_key=settings.pexels_api_key,
+            token=settings.hf_token,
             saving_dir=save_images_dir
         )
         downloaded_images = image_service.get_images(cards=cards)
@@ -205,7 +203,7 @@ def _run(
     if create_audios and not save_audios and generated_audios:
         for audio_path in generated_audios:
             audio_path.unlink()
-    if search_images and not save_images and downloaded_images:
+    if create_images and not save_images and downloaded_images:
         for img_path in downloaded_images:
             img_path.unlink()
 

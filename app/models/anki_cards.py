@@ -9,7 +9,7 @@ from .domain import CardType
 class AnkiCard(Protocol):
     create_img: bool = False
     img_path: Path | None = None
-    img_name: str | None = None
+    img_prompt: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]]  # Required columns in the CSV file
 
@@ -30,7 +30,7 @@ class NumberCard:
     ipa: str
     create_img: bool = False
     img_path: Path | None = None
-    img_name: str | None = None
+    img_prompt: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'number', 'word', 'ipa'}
 
@@ -65,13 +65,13 @@ class VocabularyCard:
     ipa: str
     notes: str
     create_img: bool
-    img_name: str | None
     img_path: Path | None
+    img_prompt: str | None
     audio_script: str
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {
-        'img_name', 'word_spanish', 'word_french', 'audio_script', 'audio_ipa', 'notes',
-        'create_img'
+        'word_spanish', 'word_french', 'audio_script', 'audio_ipa', 'notes', 'img_prompt',
+        'img_name', 'create_img'
     }
 
     @classmethod
@@ -81,10 +81,10 @@ class VocabularyCard:
         set.
         """
         if row['create_img'].lower() != 'true':
-            img_name, img_path = None, None
+            img_prompt, img_path = None, None
             create_img = False
         else:
-            img_name, img_path = row['img_name'], Path(f"{row['img_name']}.png")
+            img_prompt, img_path = row['img_prompt'], Path(f"{row['img_name']}")
             create_img = True
 
         return cls(
@@ -93,8 +93,8 @@ class VocabularyCard:
             ipa=row['audio_ipa'],
             notes=row['notes'],
             audio_script=row['audio_script'],
-            img_name=img_name,
             img_path=img_path,
+            img_prompt=img_prompt,
             create_img=create_img
         )
 
@@ -125,7 +125,7 @@ class ClozeCard:
     notes: str
     create_img: bool = False
     img_path: Path | None = None
-    img_name: str | None = None
+    img_prompt: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {'text_cloze', 'translation', 'notes'}
 
@@ -166,7 +166,7 @@ class VerbCard:
     audio_script: str
     create_img: bool = False
     img_path: Path | None = None
-    img_name: str | None = None
+    img_prompt: str | None = None
     audio_path: Path | None = None
     REQUIRED_FIELDS: ClassVar[set[str]] = {
         'verb_spanish', 'conjugation', 'notes', 'audio_script'
